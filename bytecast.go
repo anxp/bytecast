@@ -67,6 +67,35 @@ func Int16From2Bytes(byteValue [2]byte) int16 {
 	return v
 }
 
+func Uint16To2Bytes(intValue uint16) [2]byte {
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, intValue)
+	bFixed := (*[2]byte)(b)
+	return *bFixed
+}
+
+func Uint16From2Bytes(byteValue [2]byte) uint16 {
+	bSlice := byteValue[:]
+	v := binary.BigEndian.Uint16(bSlice)
+	return v
+}
+
+func Int8To1Byte(intValue int8) [1]byte {
+	return [1]byte{byte(intValue)}
+}
+
+func Int8From1Byte(byteValue [1]byte) int8 {
+	return int8(byteValue[0])
+}
+
+func Uint8To1Byte(intValue uint8) [1]byte {
+	return [1]byte{intValue}
+}
+
+func Uint8From1Byte(byteValue [1]byte) uint8 {
+	return byteValue[0]
+}
+
 func BigIntTo32Bytes(bigInt *big.Int) [32]byte {
 	if bigInt == nil {
 		bigInt = big.NewInt(0)
