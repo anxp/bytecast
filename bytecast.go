@@ -54,6 +54,19 @@ func Int32From4Bytes(byteValue [4]byte) int32 {
 	return v
 }
 
+func Uint32To4Bytes(intValue uint32) [4]byte {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, intValue)
+	bFixed := (*[4]byte)(b)
+	return *bFixed
+}
+
+func Uint32From4Bytes(byteValue [4]byte) uint32 {
+	bSlice := byteValue[:]
+	v := binary.BigEndian.Uint32(bSlice)
+	return v
+}
+
 func Int16To2Bytes(intValue int16) [2]byte {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, uint16(intValue))
