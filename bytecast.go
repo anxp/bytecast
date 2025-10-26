@@ -1,6 +1,7 @@
 package bytecast
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math/big"
@@ -35,6 +36,20 @@ func Int64To8Bytes(intValue int64) [8]byte {
 	return *bFixed
 }
 
+func Int64ToBytesAndExpandWidth(intValue int64, width int) ([]byte, error) {
+	if width < 8 {
+		return []byte{}, fmt.Errorf("failed to convert int64 to bytes, provided width too short, got %d expected min 8", width)
+	}
+
+	byteValue := Int64To8Bytes(intValue)
+
+	if intValue >= 0 {
+		return LeftPadBytes00(byteValue[:], width), nil
+	}
+
+	return LeftPadBytesFF(byteValue[:], width), nil
+}
+
 func Int64From8Bytes(byteValue [8]byte) int64 {
 	bSlice := byteValue[:]
 	v := int64(binary.BigEndian.Uint64(bSlice))
@@ -46,6 +61,20 @@ func Int32To4Bytes(intValue int32) [4]byte {
 	binary.BigEndian.PutUint32(b, uint32(intValue))
 	bFixed := (*[4]byte)(b)
 	return *bFixed
+}
+
+func Int32ToBytesAndExpandWidth(intValue int32, width int) ([]byte, error) {
+	if width < 4 {
+		return []byte{}, fmt.Errorf("failed to convert int32 to bytes, provided width too short, got %d expected min 4", width)
+	}
+
+	byteValue := Int32To4Bytes(intValue)
+
+	if intValue >= 0 {
+		return LeftPadBytes00(byteValue[:], width), nil
+	}
+
+	return LeftPadBytesFF(byteValue[:], width), nil
 }
 
 func Int32From4Bytes(byteValue [4]byte) int32 {
@@ -61,6 +90,16 @@ func Uint32To4Bytes(intValue uint32) [4]byte {
 	return *bFixed
 }
 
+func Uint32ToBytesAndExpandWidth(intValue uint32, width int) ([]byte, error) {
+	if width < 4 {
+		return []byte{}, fmt.Errorf("failed to convert uint32 to bytes, provided width too short, got %d expected min 4", width)
+	}
+
+	byteValue := Uint32To4Bytes(intValue)
+
+	return LeftPadBytes00(byteValue[:], width), nil
+}
+
 func Uint32From4Bytes(byteValue [4]byte) uint32 {
 	bSlice := byteValue[:]
 	v := binary.BigEndian.Uint32(bSlice)
@@ -72,6 +111,20 @@ func Int16To2Bytes(intValue int16) [2]byte {
 	binary.BigEndian.PutUint16(b, uint16(intValue))
 	bFixed := (*[2]byte)(b)
 	return *bFixed
+}
+
+func Int16ToBytesAndExpandWidth(intValue int16, width int) ([]byte, error) {
+	if width < 2 {
+		return []byte{}, fmt.Errorf("failed to convert int16 to bytes, provided width too short, got %d expected min 2", width)
+	}
+
+	byteValue := Int16To2Bytes(intValue)
+
+	if intValue >= 0 {
+		return LeftPadBytes00(byteValue[:], width), nil
+	}
+
+	return LeftPadBytesFF(byteValue[:], width), nil
 }
 
 func Int16From2Bytes(byteValue [2]byte) int16 {
@@ -87,6 +140,16 @@ func Uint16To2Bytes(intValue uint16) [2]byte {
 	return *bFixed
 }
 
+func Uint16ToBytesAndExpandWidth(intValue uint16, width int) ([]byte, error) {
+	if width < 2 {
+		return []byte{}, fmt.Errorf("failed to convert uint16 to bytes, provided width too short, got %d expected min 2", width)
+	}
+
+	byteValue := Uint16To2Bytes(intValue)
+
+	return LeftPadBytes00(byteValue[:], width), nil
+}
+
 func Uint16From2Bytes(byteValue [2]byte) uint16 {
 	bSlice := byteValue[:]
 	v := binary.BigEndian.Uint16(bSlice)
@@ -97,6 +160,20 @@ func Int8To1Byte(intValue int8) [1]byte {
 	return [1]byte{byte(intValue)}
 }
 
+func Int8ToBytesAndExpandWidth(intValue int8, width int) ([]byte, error) {
+	if width < 1 {
+		return []byte{}, fmt.Errorf("failed to convert int8 to bytes, provided width too short, got %d expected min 1", width)
+	}
+
+	byteValue := Int8To1Byte(intValue)
+
+	if intValue >= 0 {
+		return LeftPadBytes00(byteValue[:], width), nil
+	}
+
+	return LeftPadBytesFF(byteValue[:], width), nil
+}
+
 func Int8From1Byte(byteValue [1]byte) int8 {
 	return int8(byteValue[0])
 }
@@ -105,23 +182,38 @@ func Uint8To1Byte(intValue uint8) [1]byte {
 	return [1]byte{intValue}
 }
 
+func Uint8ToBytesAndExpandWidth(intValue uint8, width int) ([]byte, error) {
+	if width < 1 {
+		return []byte{}, fmt.Errorf("failed to convert uint8 to bytes, provided width too short, got %d expected min 1", width)
+	}
+
+	byteValue := Uint8To1Byte(intValue)
+
+	return LeftPadBytes00(byteValue[:], width), nil
+}
+
 func Uint8From1Byte(byteValue [1]byte) uint8 {
 	return byteValue[0]
 }
 
-func BigIntTo32Bytes(bigInt *big.Int) [32]byte {
+func BigIntToBytesAndExpandWidth(bigInt *big.Int, width int) ([]byte, error) {
 	if bigInt == nil {
 		bigInt = big.NewInt(0)
 	}
 
-	bigInt32Bytes := LeftPadBytes(bigInt.Bytes(), 32)
-	bigInt32BFixedArray := ([32]byte)(bigInt32Bytes) // Slice to array (array pointer) conversion
+	if width < len(bigInt.Bytes()) {
+		return []byte{}, fmt.Errorf("failed to expand width of BigInt value - desired width (%d) less than actual (%d)", width, len(bigInt.Bytes()))
+	}
 
-	return bigInt32BFixedArray
+	if bigInt.Sign() >= 0 {
+		return LeftPadBytes00(bigInt.Bytes(), width), nil
+	}
+
+	return LeftPadBytesFF(bigInt.Bytes(), width), nil
 }
 
-func BigIntFrom32Bytes(byteValue [32]byte) *big.Int {
-	bigInt := big.NewInt(0).SetBytes(byteValue[:])
+func BigIntFromBytes(byteValue []byte) *big.Int {
+	bigInt := big.NewInt(0).SetBytes(byteValue)
 
 	return bigInt
 }
@@ -135,6 +227,16 @@ func BoolTo1Byte(boolVal bool) [1]byte {
 	bytesArray := [1]byte{byte(valueInt8)}
 
 	return bytesArray
+}
+
+func BoolToBytesAndExpandWidth(boolVal bool, width int) ([]byte, error) {
+	if width < 1 {
+		return []byte{}, fmt.Errorf("failed to convert bool to bytes, provided width too short, got %d expected min 1", width)
+	}
+
+	byteValue := BoolTo1Byte(boolVal)
+
+	return LeftPadBytes00(byteValue[:], width), nil
 }
 
 func BoolFrom1Byte(bytesVal [1]byte) bool {
@@ -162,7 +264,7 @@ func StringTo256Bytes(stringValue string) ([256]byte, error) {
 
 	fixedWidthData := make([]byte, 0, 256)
 	fixedWidthData = append(fixedWidthData, uint8(l))
-	fixedWidthData = append(fixedWidthData, LeftPadBytes(stringBytes, 255)...)
+	fixedWidthData = append(fixedWidthData, LeftPadBytes00(stringBytes, 255)...)
 
 	dataArray := (*[256]byte)(fixedWidthData)
 
@@ -181,13 +283,18 @@ func StringFrom256Bytes(byteVal [256]byte) string {
 	return string(significantBytes)
 }
 
-func LeftPadBytes(slice []byte, l int) []byte {
-	if l <= len(slice) {
-		return slice
+func LeftPadBytes(input []byte, size int, padByte byte) []byte {
+	if size <= len(input) {
+		return input
 	}
+	pad := bytes.Repeat([]byte{padByte}, size-len(input))
+	return append(pad, input...)
+}
 
-	padded := make([]byte, l)
-	copy(padded[l-len(slice):], slice)
+func LeftPadBytes00(input []byte, size int) []byte {
+	return LeftPadBytes(input, size, 0x00)
+}
 
-	return padded
+func LeftPadBytesFF(input []byte, size int) []byte {
+	return LeftPadBytes(input, size, 0xFF)
 }
