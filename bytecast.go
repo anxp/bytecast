@@ -201,32 +201,52 @@ func BigIntToBytesAndExpandWidth(bigInt *big.Int, width int) ([]byte, error) {
 		bigInt = big.NewInt(0)
 	}
 
-	if width < len(bigInt.Bytes()) {
-		return []byte{}, fmt.Errorf("failed to expand width of BigInt value - desired width (%d) less than actual (%d)", width, len(bigInt.Bytes()))
-	}
+	bitLen := uint(width * 8)
 
 	if bigInt.Sign() >= 0 {
+		if bigInt.BitLen() > int(bitLen) {
+			return nil, fmt.Errorf("integer %s too large to encode in %d bytes", bigInt, width)
+		}
 		return LeftPadBytes00(bigInt.Bytes(), width), nil
 	}
 
-	return LeftPadBytesFF(bigInt.Bytes(), width), nil
+	// two's complement: 2^N + v (де v < 0)
+	// Example:
+	// 	-1 = 2^256 - 1
+	//	-2 = 2^256 - 2
+	mod := new(big.Int).Lsh(big.NewInt(1), bitLen)
+	twos := new(big.Int).Add(mod, bigInt)
+
+	if twos.Sign() < 0 || twos.BitLen() > int(bitLen) {
+		return nil, fmt.Errorf("integer %s cannot fit in %d bytes", bigInt.String(), width)
+	}
+
+	// вже правильне представлення у width байт, не добиваємо нулями
+	return twos.Bytes(), nil
 }
 
 func BigIntFromBytes(byteValue []byte) *big.Int {
-	bigInt := big.NewInt(0).SetBytes(byteValue)
+	// unsigned interpretation
+	x := new(big.Int).SetBytes(byteValue)
 
-	return bigInt
+	// if sign bit is NOT set → positive
+	if len(byteValue) == 0 || byteValue[0]&0x80 == 0 { // 0x80 is highest, sign bit, the same as 0b10000000
+		return x
+	}
+
+	// negative number:
+	// x = x - 2^(8 * len(b))
+	bitLen := uint(len(byteValue) * 8)
+	mod := big.NewInt(0).Lsh(big.NewInt(1), bitLen)
+
+	return x.Sub(x, mod)
 }
 
 func BoolTo1Byte(boolVal bool) [1]byte {
-	valueInt8 := int8(0)
 	if boolVal {
-		valueInt8 = 1
+		return [1]byte{0x01} // завжди 1 для true
 	}
-
-	bytesArray := [1]byte{byte(valueInt8)}
-
-	return bytesArray
+	return [1]byte{0x00} // завжди 0 для false
 }
 
 func BoolToBytesAndExpandWidth(boolVal bool, width int) ([]byte, error) {
@@ -240,14 +260,7 @@ func BoolToBytesAndExpandWidth(boolVal bool, width int) ([]byte, error) {
 }
 
 func BoolFrom1Byte(bytesVal [1]byte) bool {
-	var valueInt8 int8
-	valueInt8 = int8(bytesVal[0])
-
-	if valueInt8 > 0 {
-		return true
-	}
-
-	return false
+	return bytesVal[0] != 0 // будь-яке ненульове значення → true
 }
 
 // StringTo256Bytes converts arbitrary string to bytes array.
