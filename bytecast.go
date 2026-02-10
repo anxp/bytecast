@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 )
@@ -24,6 +25,107 @@ func ToTypedValue[T any](v reflect.Value) (T, error) {
 		return t, fmt.Errorf("v has not type %T", t)
 	}
 	return u, nil
+}
+
+// IntXXToBytesAndExpandWidth
+//
+//	Takes value passed in int64 container, but handles it as xx-bit value, represents as bytes slice and expand to specified width.
+//
+//	NOTE:
+//	xx => bits
+//	width => bytes
+func IntXXToBytesAndExpandWidth(value int64, xx int, width int) ([]byte, error) {
+	if xx <= 0 || xx > 64 {
+		return nil, fmt.Errorf("unsupported bit size %d, must be 1..64", xx)
+	}
+
+	// [ s xxxxxxx xxxxxxxx ... xxxxxxxx ]   ← 56 bits
+	//   ^
+	//   sign bit (bit 55)
+
+	maxPossibleV := int64(1)<<(xx-1) - 1
+	minPossibleV := int64(-1) << (xx - 1)
+
+	if value < minPossibleV || value > maxPossibleV {
+		return nil, fmt.Errorf("value %d does not fit in int%d", value, xx)
+	}
+
+	// take lower 56 bits
+	// (1 << 56)     = 100000...000
+	// (1 << 56) - 1 = 011111...111
+	var u uint64
+	if value < 0 {
+		u = uint64(value + (1 << xx)) // two's complement: 2^N + v (де v < 0)
+	} else {
+		u = uint64(value)
+	}
+
+	// How many bytes "netto" we need to store value?
+	neededBytesNum := int(math.Ceil(float64(xx) / float64(8)))
+
+	out := make([]byte, width)
+
+	// Write into last neededBytesNum bytes (big-endian)
+	// Example for int56 (neededBytesNum == 7) and width == 32:
+	// 	out[25] = byte(u >> 48)
+	//	out[26] = byte(u >> 40)
+	//	out[27] = byte(u >> 32)
+	//	out[28] = byte(u >> 24)
+	//	out[29] = byte(u >> 16)
+	//	out[30] = byte(u >> 8)
+	//	out[31] = byte(u)
+	offset := (neededBytesNum - 1) * 8
+	for i := width - neededBytesNum; i < width; i++ {
+		out[i] = byte(u >> uint(offset))
+		offset -= 8
+	}
+
+	// sign extension (only for negative values)
+	if value < 0 {
+		for i := 0; i < width-neededBytesNum; i++ {
+			out[i] = byte(0xff)
+		}
+	}
+
+	return out, nil
+}
+
+// UintXXToBytesAndExpandWidth
+//
+//	Takes value passed in uint64 container, but handles it as xx-bit unsigned value,
+//	represents it as bytes slice and expands to specified width (e.g., 32 bytes for EVM).
+//
+//	NOTE:
+//	xx => bits
+//	width => bytes
+func UintXXToBytesAndExpandWidth(value uint64, xx int, width int) ([]byte, error) {
+	if xx <= 0 || xx > 64 {
+		return nil, fmt.Errorf("unsupported bit size %d, must be 1..64", xx)
+	}
+
+	// Перевіряємо, чи число поміщається в xx біт
+	maxPossibleV := uint64(1)<<xx - 1
+	if value > maxPossibleV {
+		return nil, fmt.Errorf("value %d does not fit in uint%d", value, xx)
+	}
+
+	// Відкидаємо старші біти, залишаємо тільки xx бітів
+	u := value & maxPossibleV
+
+	// Скільки байт реально потрібно для зберігання xx бітів?
+	neededBytesNum := int(math.Ceil(float64(xx) / 8.0))
+
+	out := make([]byte, width)
+
+	// Записуємо в останні neededBytesNum байт (big-endian)
+	offset := (neededBytesNum - 1) * 8
+	for i := width - neededBytesNum; i < width; i++ {
+		out[i] = byte(u >> uint(offset))
+		offset -= 8
+	}
+
+	// Для unsigned чисел старші байти просто нулі (у нас out вже zeroed)
+	return out, nil
 }
 
 // Int64To8Bytes

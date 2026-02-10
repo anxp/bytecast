@@ -1,11 +1,90 @@
 package bytecast
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"strings"
 	"testing"
 )
+
+func TestIntXXToBytesAndExpandWidth(t *testing.T) {
+	tests := []struct {
+		value int64
+		bits  int
+		want  string // hex representation
+	}{
+		{0, 24, "0000000000000000000000000000000000000000000000000000000000000000"},
+		{1, 24, "0000000000000000000000000000000000000000000000000000000000000001"},
+		{-1, 24, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+		{-193630, 24, "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd0ba2"},
+		{8388607, 24, "00000000000000000000000000000000000000000000000000000000007fffff"},
+		{-8388608, 24, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff800000"},
+
+		{1234567890123, 56, "0000000000000000000000000000000000000000000000000000011f71fb04cb"},
+		{-1234567890123, 56, "fffffffffffffffffffffffffffffffffffffffffffffffffffffee08e04fb35"},
+		{36028797018963967, 56, "000000000000000000000000000000000000000000000000007fffffffffffff"},
+		{-36028797018963968, 56, "ffffffffffffffffffffffffffffffffffffffffffffffffff80000000000000"},
+	}
+
+	for _, tt := range tests {
+		out, err := IntXXToBytesAndExpandWidth(tt.value, tt.bits, 32)
+		if err != nil {
+			t.Errorf("IntXXToBytesAndExpandWidth(%d, %d) returned error: %v", tt.value, tt.bits, err)
+			continue
+		}
+
+		got := fmt.Sprintf("%x", out)
+		if got != tt.want {
+			t.Errorf("IntXXToBytesAndExpandWidth(%d, %d) = %s; want %s", tt.value, tt.bits, got, tt.want)
+		}
+	}
+}
+
+func TestUintXXToBytesAndExpandWidth(t *testing.T) {
+	tests := []struct {
+		value uint64
+		bits  int
+		want  string // очікуване hex-представлення 32 байт
+	}{
+		// uint8
+		{0, 8, "0000000000000000000000000000000000000000000000000000000000000000"},
+		{255, 8, "00000000000000000000000000000000000000000000000000000000000000ff"},
+
+		// uint16
+		{0, 16, "0000000000000000000000000000000000000000000000000000000000000000"},
+		{65535, 16, "000000000000000000000000000000000000000000000000000000000000ffff"},
+
+		// uint24
+		{0, 24, "0000000000000000000000000000000000000000000000000000000000000000"},
+		{16777215, 24, "0000000000000000000000000000000000000000000000000000000000ffffff"},
+
+		// uint32
+		{0, 32, "0000000000000000000000000000000000000000000000000000000000000000"},
+		{4294967295, 32, "00000000000000000000000000000000000000000000000000000000ffffffff"},
+
+		// uint56
+		{0, 56, "0000000000000000000000000000000000000000000000000000000000000000"},
+		{72057594037927935, 56, "00000000000000000000000000000000000000000000000000ffffffffffffff"},
+
+		// uint64
+		{0, 64, "0000000000000000000000000000000000000000000000000000000000000000"},
+		{18446744073709551615, 64, "000000000000000000000000000000000000000000000000ffffffffffffffff"},
+	}
+
+	for _, tt := range tests {
+		out, err := UintXXToBytesAndExpandWidth(tt.value, tt.bits, 32)
+		if err != nil {
+			t.Errorf("UintXXToBytesAndExpandWidth(%d, %d) returned error: %v", tt.value, tt.bits, err)
+			continue
+		}
+
+		got := fmt.Sprintf("%x", out)
+		if got != tt.want {
+			t.Errorf("UintXXToBytesAndExpandWidth(%d, %d) = %s; want %s", tt.value, tt.bits, got, tt.want)
+		}
+	}
+}
 
 func TestInt32SignExtension(t *testing.T) {
 	cases := []int32{
