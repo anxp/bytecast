@@ -1,6 +1,7 @@
 package bytecast
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -82,6 +83,119 @@ func TestUintXXToBytesAndExpandWidth(t *testing.T) {
 		got := fmt.Sprintf("%x", out)
 		if got != tt.want {
 			t.Errorf("UintXXToBytesAndExpandWidth(%d, %d) = %s; want %s", tt.value, tt.bits, got, tt.want)
+		}
+	}
+}
+
+func TestIntXXFromBytes(t *testing.T) {
+
+	value_0_24, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_1_24, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000001")
+	value_m1_24, _ := hex.DecodeString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+	value_m193630_24, _ := hex.DecodeString("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd0ba2")
+	value_8388607_24, _ := hex.DecodeString("00000000000000000000000000000000000000000000000000000000007fffff")
+	value_m8388608_24, _ := hex.DecodeString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff800000")
+	value_1234567890123_56, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000011f71fb04cb")
+	value_m1234567890123_56, _ := hex.DecodeString("fffffffffffffffffffffffffffffffffffffffffffffffffffffee08e04fb35")
+	value_0_56, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_36028797018963967_56, _ := hex.DecodeString("000000000000000000000000000000000000000000000000007fffffffffffff")
+	value_m36028797018963968_56, _ := hex.DecodeString("ffffffffffffffffffffffffffffffffffffffffffffffffff80000000000000")
+
+	tests := []struct {
+		bytes []byte
+		bits  int
+		want  int64
+	}{
+		{value_0_24, 24, 0},
+		{value_1_24, 24, 1},
+
+		{value_m1_24, 24, -1},
+		{value_m193630_24, 24, -193630},
+
+		{value_8388607_24, 24, 8388607},
+		{value_m8388608_24, 24, -8388608},
+
+		{value_1234567890123_56, 56, 1234567890123},
+		{value_m1234567890123_56, 56, -1234567890123},
+
+		{value_0_56, 56, 0},
+		{value_36028797018963967_56, 56, 36028797018963967},
+
+		{value_m36028797018963968_56, 56, -36028797018963968},
+	}
+
+	for _, tt := range tests {
+		out, err := IntXXFromBytes(tt.bytes, tt.bits)
+		if err != nil {
+			t.Errorf("IntXXFromBytes(%x, %d) returned error: %v", tt.bytes, tt.bits, err)
+			continue
+		}
+
+		if out != tt.want {
+			t.Errorf("IntXXFromBytes(%x, %d) = %d; want %d", tt.bytes, tt.bits, out, tt.want)
+		}
+	}
+}
+
+func TestUintXXFromBytes(t *testing.T) {
+
+	value_0_8, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_255_8, _ := hex.DecodeString("00000000000000000000000000000000000000000000000000000000000000ff")
+
+	value_0_16, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_65535_16, _ := hex.DecodeString("000000000000000000000000000000000000000000000000000000000000ffff")
+
+	value_0_24, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_16777215_24, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000ffffff")
+
+	value_0_32, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_4294967295_32, _ := hex.DecodeString("00000000000000000000000000000000000000000000000000000000ffffffff")
+
+	value_0_56, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_72057594037927935_56, _ := hex.DecodeString("00000000000000000000000000000000000000000000000000ffffffffffffff")
+
+	value_0_64, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+	value_18446744073709551615_64, _ := hex.DecodeString("000000000000000000000000000000000000000000000000ffffffffffffffff")
+
+	tests := []struct {
+		bytes []byte
+		bits  int
+		want  uint64
+	}{
+		// uint8
+		{value_0_8, 8, 0},
+		{value_255_8, 8, 255},
+
+		// uint16
+		{value_0_16, 16, 0},
+		{value_65535_16, 16, 65535},
+
+		// uint24
+		{value_0_24, 24, 0},
+		{value_16777215_24, 24, 16777215},
+
+		// uint32
+		{value_0_32, 32, 0},
+		{value_4294967295_32, 32, 4294967295},
+
+		// uint56
+		{value_0_56, 56, 0},
+		{value_72057594037927935_56, 56, 72057594037927935},
+
+		// uint64
+		{value_0_64, 64, 0},
+		{value_18446744073709551615_64, 64, 18446744073709551615},
+	}
+
+	for _, tt := range tests {
+		out, err := UintXXFromBytes(tt.bytes, tt.bits)
+		if err != nil {
+			t.Errorf("UintXXFromBytes(%x, %d) returned error: %v", tt.bytes, tt.bits, err)
+			continue
+		}
+
+		if out != tt.want {
+			t.Errorf("UintXXFromBytes(%x, %d) = %d; want %d", tt.bytes, tt.bits, out, tt.want)
 		}
 	}
 }

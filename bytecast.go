@@ -128,6 +128,97 @@ func UintXXToBytesAndExpandWidth(value uint64, xx int, width int) ([]byte, error
 	return out, nil
 }
 
+// IntXXFromBytes
+//
+//	Takes "bytes" bytes from input and interpret them as int-xx value,
+//	then pack into int64 container and return.
+func IntXXFromBytes(bytes []byte, xx int) (int64, error) {
+	if xx <= 0 || xx > 64 {
+		return 0, fmt.Errorf("unsupported bit size %d, must be 1..64", xx)
+	}
+
+	// Скільки байт реально потрібно для зберігання xx бітів?
+	neededBytesNum := int(math.Ceil(float64(xx) / 8.0))
+
+	if len(bytes) < neededBytesNum {
+		return 0, fmt.Errorf(
+			"expected at least %d bytes to interpret as int%d value, but got only %d bytes",
+			neededBytesNum, xx, len(bytes),
+		)
+	}
+
+	// We take last "neededBytes" bytes from received "bytes" bytes:
+	var u uint64
+	offset := (neededBytesNum - 1) * 8
+	start := len(bytes) - neededBytesNum
+
+	for i := start; i < len(bytes); i++ {
+		u |= uint64(bytes[i]) << offset
+		offset -= 8
+	}
+
+	signBitPosition := xx - 1
+
+	// For int64 2s complement not needed, int64 already has correct sign
+	if xx == 64 || u&(1<<signBitPosition) == 0 {
+		return int64(u), nil
+	}
+
+	// EXAMPLE for int24:
+	// if sign bit #24 is set → negative number
+	//
+	// 00000000 sxxxxxxx xxxxxxxx xxxxxxxx
+	// ↑        ↑
+	// біт 31   біт 23 (sign bit int24)
+	//
+	// v before:
+	// 00000000 1xxxxxxx xxxxxxxx xxxxxxxx
+	//
+	// mask:
+	// 11111111 00000000 00000000 00000000
+	// ----------------------------------
+	// v after OR:
+	// 11111111 1xxxxxxx xxxxxxxx xxxxxxxx
+
+	var mask uint64
+	mask = ^((1 << xx) - 1)
+	u |= mask
+
+	return int64(u), nil
+}
+
+// UintXXFromBytes
+//
+//	Takes "bytes" bytes from input and interpret them as uint-xx value,
+//	then pack into uint64 container and return.
+func UintXXFromBytes(bytes []byte, xx int) (uint64, error) {
+	if xx <= 0 || xx > 64 {
+		return 0, fmt.Errorf("unsupported bit size %d, must be 1..64", xx)
+	}
+
+	// How many bytes needed to store xx bits?
+	neededBytesNum := int(math.Ceil(float64(xx) / 8.0))
+
+	if len(bytes) < neededBytesNum {
+		return 0, fmt.Errorf(
+			"expected at least %d bytes to interpret as uint%d value, but got only %d bytes",
+			neededBytesNum, xx, len(bytes),
+		)
+	}
+
+	// Take last neededBytesNum bytes (big-endian)
+	var u uint64
+	offset := (neededBytesNum - 1) * 8
+	start := len(bytes) - neededBytesNum
+
+	for i := start; i < len(bytes); i++ {
+		u |= uint64(bytes[i]) << offset
+		offset -= 8
+	}
+
+	return u, nil
+}
+
 // Int64To8Bytes
 //
 //	https://groups.google.com/g/golang-nuts/c/q1wk1WDNoo4?pli=1
