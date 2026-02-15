@@ -246,6 +246,115 @@ func TestBigIntNegativeRoundTrip(t *testing.T) {
 	}
 }
 
+func TestBigIntXXXFromBytes(t *testing.T) {
+
+	tests := []struct {
+		name      string
+		inputHex  string
+		bits      int
+		expected  string // decimal string
+		expectErr bool
+	}{
+		// ===== int128 =====
+
+		{
+			name:     "int128 zero",
+			inputHex: "00000000000000000000000000000000",
+			bits:     128,
+			expected: "0",
+		},
+		{
+			name:     "int128 positive 1",
+			inputHex: "00000000000000000000000000000001",
+			bits:     128,
+			expected: "1",
+		},
+		{
+			name:     "int128 negative -1",
+			inputHex: "ffffffffffffffffffffffffffffffff",
+			bits:     128,
+			expected: "-1",
+		},
+		{
+			name:     "int128 max positive",
+			inputHex: "7fffffffffffffffffffffffffffffff",
+			bits:     128,
+			expected: "170141183460469231731687303715884105727",
+		},
+		{
+			name:     "int128 min negative",
+			inputHex: "80000000000000000000000000000000",
+			bits:     128,
+			expected: "-170141183460469231731687303715884105728",
+		},
+
+		// ===== int160 =====
+
+		{
+			name:     "int160 arbitrary big positive 79258167029665873093473853930",
+			inputHex: "00000000000000010018d1b40a04d0c2fcb3e1ea",
+			bits:     160,
+			expected: "79258167029665873093473853930",
+		},
+
+		// ===== int130 (non byte aligned) =====
+
+		{
+			name:     "int130 positive small",
+			inputHex: "0000000000000000000000000000000003",
+			bits:     130,
+			expected: "3",
+		},
+		{
+			name:     "int130 negative -1",
+			inputHex: "03ffffffffffffffffffffffffffffffff",
+			bits:     130,
+			expected: "-1",
+		},
+
+		// ===== error case =====
+		{
+			name:      "too short input",
+			inputHex:  "ffff",
+			bits:      128,
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			inputBytes, err := hex.DecodeString(tt.inputHex)
+			if err != nil {
+				t.Fatalf("failed to decode hex: %v", err)
+			}
+
+			result, err := BigIntXXXFromBytes(inputBytes, tt.bits)
+
+			if tt.expectErr {
+				if err == nil {
+					t.Fatalf("expected error but got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			expectedBig := new(big.Int)
+			expectedBig.SetString(tt.expected, 10)
+
+			if result.Cmp(expectedBig) != 0 {
+				t.Fatalf("expected %s, got %s",
+					expectedBig.String(),
+					result.String(),
+				)
+			}
+		})
+	}
+}
+
 func TestWidthTooSmall(t *testing.T) {
 	_, err := Int32ToBytesAndExpandWidth(1, 3)
 	if err == nil {

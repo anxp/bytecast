@@ -435,6 +435,45 @@ func BigIntFromBytes(byteValue []byte) *big.Int {
 	return x.Sub(x, mod)
 }
 
+// BigIntXXXFromBytes
+//
+//	Takes "bytes" bytes from input and interpret them as big.Int-xxx (int128, int256) value,
+//	then pack into *big.Int and return.
+//
+//	This method is better than BigIntFromBytes,
+//	because it CHECKS SIGN BIT AT STRICTLY DEFINED PLACE.
+func BigIntXXXFromBytes(bytes []byte, xxx int) (*big.Int, error) {
+	if xxx <= 64 {
+		return nil, fmt.Errorf("too small bit size %d, for standard int up to int64 use \"IntXXFromBytes\" method", xxx)
+	}
+
+	// Скільки байт реально потрібно для зберігання xx бітів?
+	neededBytesNum := int(math.Ceil(float64(xxx) / 8.0))
+
+	if len(bytes) < neededBytesNum {
+		return nil, fmt.Errorf(
+			"expected at least %d bytes to interpret as big.Int (%dbit) value, but got only %d bytes",
+			neededBytesNum, xxx, len(bytes),
+		)
+	}
+
+	// We take last "neededBytes" bytes from received "bytes" bytes:
+	start := len(bytes) - neededBytesNum
+	uBytes := bytes[start:]
+
+	resultUnsigned := new(big.Int).SetBytes(uBytes)
+
+	// signBitPosition = xxx - 1; if sign bit is NOT set → positive
+	if resultUnsigned.Bit(xxx-1) == 0 {
+		return resultUnsigned, nil
+	}
+
+	// negative number:
+	// x = x - 2^xxx
+	mod := new(big.Int).Lsh(big.NewInt(1), uint(xxx))
+	return resultUnsigned.Sub(resultUnsigned, mod), nil
+}
+
 func BoolTo1Byte(boolVal bool) [1]byte {
 	if boolVal {
 		return [1]byte{0x01} // завжди 1 для true
